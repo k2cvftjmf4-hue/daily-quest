@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Daily Quest" />
+<meta name="theme-color" content="#05070D" />
+<title>Daily Quest — System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%2305070D%22/><text x=%2250%22 y=%2268%22 font-size=%2260%22 text-anchor=%22middle%22 fill=%22%237FFFD4%22 font-family=%22monospace%22>S</text></svg>">
+
+<style>
+  :root{
+    --void:#05070D;
+    --panel:#0B1020;
+    --panel-2:#101830;
+    --blue:#5B8CFF;
+    --blue-soft:#A6C8FF;
+    --violet:#A368FF;
+    --violet-soft:#D9C8FF;
+    --aqua:#7FFFD4;
+    --orange:#FF9B3B;
+    --danger:#FF3B5C;
+    --line: rgba(91,140,255,0.28);
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{ margin:0; padding:0; height:100%; }
+  body{
+    font-family:'Rajdhani', sans-serif;
+    background:var(--void);
+    color:var(--blue-soft);
+    min-height:100vh;
+    min-height:100dvh;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .font-orb{ font-family:'Orbitron', sans-serif; }
+  .font-mono{ font-family:'Share Tech Mono', monospace; }
+
+  /* Background layers */
+  .bg-fixed{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+  }
+  .bg-grid{
+    background-image:
+      linear-gradient(rgba(91,140,255,0.5) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(91,140,255,0.5) 1px, transparent 1px);
+    background-size:48px 48px;
+    opacity:0.05;
+    animation: gridDrift 60s linear infinite;
+  }
+  @keyframes gridDrift{
+    0%{ background-position:0 0; }
+    100%{ background-position:48px 96px; }
+  }
+  .bg-glow{
+    background: radial-gradient(circle at 50% 15%, rgba(91,140,255,0.14), transparent 55%),
+                radial-gradient(circle at 85% 90%, rgba(163,104,255,0.10), transparent 50%);
+  }
+  .bg-scan{
+    background-image: repeating-linear-gradient(0deg, #fff 0px, transparent 1px, transparent 2px, #fff 3px);
+    opacity:0.025;
+  }
+  .bg-noise-vignette{
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.55) 100%);
+  }
+
+  /* Particle motes */
+  .mote{
+    position:fixed; border-radius:50%; pointer-events:none; z-index:1;
+    background: radial-gradient(circle, rgba(127,255,212,0.9), rgba(127,255,212,0));
+    animation: floatUp linear infinite;
+  }
+  @keyframes floatUp{
+    0%{ transform: translateY(0) translateX(0); opacity:0; }
+    10%{ opacity:0.7; }
+    90%{ opacity:0.4; }
+    100%{ transform: translateY(-110vh) translateX(var(--drift)); opacity:0; }
+  }
+
+  .wrap{
+    position:relative; z-index:2;
+    min-height:100vh; min-height:100dvh;
+    display:flex; align-items:center; justify-content:center;
+    padding: max(20px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
+  }
+
+  .card{
+    width:100%; max-width:430px;
+    background: rgba(11,16,32,0.92);
+    backdrop-filter: blur(14px);
+    border:1px solid var(--line);
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%);
+    position:relative;
+    animation: cardIn 0.7s cubic-bezier(.2,.8,.2,1) both, pulseGlow 5s ease-in-out infinite;
+  }
+  @keyframes cardIn{
+    0%{ opacity:0; transform: translateY(18px) scale(0.98); }
+    100%{ opacity:1; transform: translateY(0) scale(1); }
+  }
+  @keyframes pulseGlow{
+    0%,100%{ box-shadow: 0 0 10px rgba(91,140,255,0.25), inset 0 0 24px rgba(91,140,255,0.04); }
+    50%{ box-shadow: 0 0 26px rgba(91,140,255,0.45), inset 0 0 34px rgba(91,140,255,0.10); }
+  }
+  /* corner accents */
+  .card::before, .card::after{
+    content:''; position:absolute; width:14px; height:14px;
+    border-color: var(--blue); opacity:0.7;
+  }
+  .card::before{ top:-1px; left:-1px; border-top:2px solid var(--blue); border-left:2px solid var(--blue); }
+  .card::after{ top:-1px; right:-1px; border-top:2px solid var(--blue); border-right:2px solid var(--blue); }
+
+  /* Header */
+  .header{
+    border-bottom:1px solid var(--line);
+    padding:18px 22px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .eyebrow{
+    font-size:10px; letter-spacing:0.3em; color:rgba(91,140,255,0.7);
+  }
+  .title{
+    font-size:21px; font-weight:700; color:#E6EDFF; letter-spacing:0.05em; margin-top:4px;
+    text-shadow: 0 0 14px rgba(91,140,255,0.35);
+  }
+  .level-box{ text-align:right; }
+  .level-label{ font-size:10px; letter-spacing:0.25em; color:rgba(127,255,212,0.7); }
+  .level-num{
+    font-size:32px; font-weight:900; color:var(--aqua);
+    text-shadow:0 0 16px rgba(127,255,212,0.55);
+    transition: transform 0.3s ease;
+  }
+  .level-num.bump{ transform: scale(1.25); }
+
+  /* XP bar */
+  .xp-section{ padding:16px 22px 0; }
+  .xp-row{
+    display:flex; justify-content:space-between; font-family:'Share Tech Mono', monospace;
+    font-size:11px; color:rgba(166,200,255,0.7); margin-bottom:6px; letter-spacing:0.05em;
+  }
+  .xp-track{
+    height:8px; width:100%; background:var(--void);
+    border:1px solid var(--line); overflow:hidden; position:relative;
+  }
+  .xp-fill{
+    height:100%; background:linear-gradient(90deg, var(--blue), var(--violet));
+    box-shadow:0 0 12px rgba(91,140,255,0.8);
+    transition: width 0.8s cubic-bezier(.22,.9,.32,1);
+    position:relative;
+  }
+  .xp-fill::after{
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+    width:40%; animation: shimmer 2.4s linear infinite;
+  }
+  @keyframes shimmer{
+    0%{ transform: translateX(-100%); }
+    100%{ transform: translateX(250%); }
+  }
+
+  /* Streak */
+  .streak{
+    padding:14px 22px 0; display:flex; align-items:center; gap:8px;
+    font-family:'Share Tech Mono', monospace; font-size:12px;
+  }
+  .streak-flame{
+    width:18px; height:18px; display:inline-flex; flex-shrink:0;
+  }
+  .streak-flame.active{ filter: drop-shadow(0 0 6px rgba(255,155,59,0.8)); animation: flicker 1.6s ease-in-out infinite; }
+  @keyframes flicker{
+    0%,100%{ transform: scale(1) rotate(0deg); }
+    50%{ transform: scale(1.08) rotate(-3deg); }
+  }
+  .streak-num{ color:var(--orange); font-weight:700; }
+
+  /* Quest list */
+  .quests{ padding:18px 22px 0; }
+  .quests-label{
+    font-family:'Share Tech Mono', monospace; font-size:10px; letter-spacing:0.25em;
+    color:rgba(91,140,255,0.6); margin-bottom:10px;
+  }
+  .quest{
+    display:flex; align-items:center; justify-content:space-between;
+    width:100%; text-align:left; padding:13px 16px; margin-bottom:10px;
+    border:1px solid var(--line); background:rgba(16,24,48,0.55);
+    cursor:pointer; transition: border-color 0.2s, background 0.2s, transform 0.15s;
+    animation: questIn 0.5s ease-out both;
+    -webkit-user-select:none; user-select:none;
+    font:inherit; color:inherit;
+  }
+  .quest:active{ transform: scale(0.985); }
+  @keyframes questIn{
+    0%{ opacity:0; transform: translateY(10px); }
+    100%{ opacity:1; transform: translateY(0); }
+  }
+  .quest.done{
+    border-color: rgba(127,255,212,0.5);
+    background: rgba(127,255,212,0.06);
+  }
+  .quest:not(.done):hover{ border-color: rgba(91,140,255,0.6); }
+
+  .quest-left{ display:flex; align-items:center; gap:12px; }
+  .checkbox{
+    width:22px; height:22px; border:1px solid rgba(91,140,255,0.5);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    transition: border-color 0.2s, background 0.2s;
+    position:relative;
+  }
+  .quest.done .checkbox{ border-color: var(--aqua); background: rgba(127,255,212,0.18); }
+  .checkbox .dot{
+    width:11px; height:11px; background:var(--aqua); box-shadow:0 0 8px var(--aqua);
+    transform: scale(0); transition: transform 0.25s cubic-bezier(.34,1.56,.64,1);
+  }
+  .quest.done .checkbox .dot{ transform: scale(1); }
+
+  .quest-name{
+    font-weight:600; font-size:15px; color:#E6EDFF; transition: color 0.2s, opacity 0.2s;
+  }
+  .quest.done .quest-name{ color:var(--aqua); opacity:0.7; text-decoration: line-through; }
+  .quest-target{
+    font-family:'Share Tech Mono', monospace; font-size:12px; color:rgba(166,200,255,0.65);
+  }
+
+  /* counter +/- controls */
+  .counter{
+    display:flex; align-items:center; gap:8px;
+  }
+  .counter button{
+    width:26px; height:26px; border:1px solid rgba(91,140,255,0.4);
+    background:rgba(91,140,255,0.08); color:var(--blue-soft);
+    font-family:'Share Tech Mono', monospace; font-size:14px; line-height:1;
+    cursor:pointer; transition: background 0.15s, border-color 0.15s;
+  }
+  .counter button:active{ background:rgba(91,140,255,0.25); }
+  .counter .val{
+    font-family:'Share Tech Mono', monospace; font-size:13px; min-width:34px; text-align:center;
+  }
+
+  /* Footer */
+  .footer{
+    padding:16px 22px 20px; margin-top:6px; border-top:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .total-xp{
+    display:flex; align-items:center; gap:8px;
+    font-family:'Share Tech Mono', monospace; font-size:11px; color:rgba(166,200,255,0.6);
+  }
+  .reset-btn{
+    display:flex; align-items:center; gap:6px;
+    font-family:'Share Tech Mono', monospace; font-size:10px; letter-spacing:0.15em;
+    color:rgba(166,200,255,0.45); background:transparent; border:1px solid transparent;
+    padding:6px 8px; cursor:pointer; transition: color 0.2s, border-color 0.2s;
+  }
+  .reset-btn:hover{ color:var(--danger); border-color: rgba(255,59,92,0.3); }
+
+  .complete-banner{
+    margin:0 22px 18px; padding:10px; text-align:center;
+    border:1px solid rgba(127,255,212,0.3); background:rgba(127,255,212,0.05);
+    color:var(--aqua); font-family:'Share Tech Mono', monospace; font-size:12px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    animation: questIn 0.4s ease-out both;
+  }
+
+  .footer-tag{
+    text-align:center; margin-top:18px; font-family:'Share Tech Mono', monospace;
+    font-size:10px; letter-spacing:0.25em; color:#3A4566;
+  }
+
+  /* Overlays */
+  .overlay{
+    position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center;
+    pointer-events:none; padding:20px; text-align:center;
+  }
+  .overlay-inner{ animation: systemPop 2.4s ease-in-out forwards; }
+  @keyframes systemPop{
+    0%{ opacity:0; transform: scale(0.85); }
+    12%{ opacity:1; transform: scale(1.03); }
+    22%{ transform: scale(1); }
+    82%{ opacity:1; }
+    100%{ opacity:0; transform: scale(0.97); }
+  }
+  .ov-tag{
+    font-family:'Share Tech Mono', monospace; font-size:12px; letter-spacing:0.35em;
+    margin-bottom:8px;
+  }
+  .ov-title{
+    font-family:'Orbitron', sans-serif; font-weight:900; font-size:38px; line-height:1.15;
+    letter-spacing:0.04em;
+  }
+  .ov-sub{
+    font-family:'Share Tech Mono', monospace; font-size:14px; margin-top:10px;
+  }
+
+  /* Install hint */
+  .install-hint{
+    position:fixed; bottom:max(14px, env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%);
+    z-index:40; font-family:'Share Tech Mono', monospace; font-size:10px;
+    color:rgba(166,200,255,0.4); letter-spacing:0.1em; white-space:nowrap;
+    opacity:0; animation: hintFade 0.6s ease-out 1.2s forwards;
+  }
+  @keyframes hintFade{ to{ opacity:1; } }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+  }
+
+  @media (max-width: 380px){
+    .ov-title{ font-size:30px; }
+    .level-num{ font-size:26px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-fixed bg-glow"></div>
+<div class="bg-fixed bg-grid"></div>
+<div class="bg-fixed bg-scan"></div>
+<div class="bg-fixed bg-noise-vignette"></div>
+<div id="motes"></div>
+
+<div class="wrap">
+  <div class="card" id="card">
+
+    <div class="header">
+      <div>
+        <div class="eyebrow">STATUS WINDOW</div>
+        <div class="title font-orb">DAILY QUEST</div>
+      </div>
+      <div class="level-box">
+        <div class="level-label">LEVEL</div>
+        <div class="level-num font-orb" id="levelNum">1</div>
+      </div>
+    </div>
+
+    <div class="xp-section">
+      <div class="xp-row">
+        <span>XP</span>
+        <span id="xpLabel">0 / 150</span>
+      </div>
+      <div class="xp-track">
+        <div class="xp-fill" id="xpFill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="streak">
+      <span class="streak-flame" id="flameIcon">
+        <svg viewBox="0 0 24 24" fill="none" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2c1 3-3 4-3 7a3 3 0 1 0 6 0c0-1-1-2-1-2 2 1 3 4 3 6a5 5 0 0 1-10 0c0-4 3-6 5-11z" fill="#3A4566"/>
+        </svg>
+      </span>
+      <span>STREAK: <span class="streak-num" id="streakNum">0</span> <span id="streakWord">Tage</span></span>
+    </div>
+
+    <div class="quests">
+      <div class="quests-label" id="questsLabel">ÜBUNGEN — 0/4</div>
+      <div id="questList"></div>
+    </div>
+
+    <div id="completeBanner"></div>
+
+    <div class="footer">
+      <div class="total-xp">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="color:var(--blue)">
+          <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M5 16h14v2H5v-2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg>
+        <span id="totalXp">0</span> XP TOTAL
+      </div>
+      <button class="reset-btn" id="resetBtn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 12a9 9 0 1 0 2.6-6.3M3 4v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        ZURÜCKSETZEN
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<div class="install-hint" id="installHint">+ ZUM HOMESCREEN HINZUFÜGEN FÜR APP-MODUS</div>
+
+<div class="overlay" id="overlayAllComplete" style="display:none;">
+  <div class="overlay-inner">
+    <div class="ov-tag" style="color:var(--blue);">[ SYSTEM ]</div>
+    <div class="ov-title font-orb" style="color:var(--blue-soft); text-shadow:0 0 24px rgba(91,140,255,0.9), 0 0 50px rgba(91,140,255,0.4);">
+      DAILY QUEST<br/>COMPLETE
+    </div>
+    <div class="ov-sub" style="color:var(--aqua);">+50 BONUS XP</div>
+  </div>
+</div>
+
+<div class="overlay" id="overlayLevelUp" style="display:none;">
+  <div class="overlay-inner">
+    <div class="ov-tag" style="color:var(--violet);">[ NOTIFICATION ]</div>
+    <div class="ov-title font-orb" style="color:var(--violet-soft); text-shadow:0 0 24px rgba(163,104,255,0.9), 0 0 50px rgba(163,104,255,0.5);">
+      LEVEL UP
+    </div>
+    <div class="ov-sub" id="newLevelText" style="color:var(--violet);">→ LV. 2</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'solo-daily-quest-v1';
+  const XP_PER_QUEST = 25;
+  const XP_BONUS_ALL = 50;
+  const XP_PER_LEVEL = 150;
+
+  const QUESTS = [
+    { id:'situps', label:'Sit-ups', target:30, unit:'reps', step:5 },
+    { id:'pushups', label:'Push-ups', target:20, unit:'reps', step:5 },
+    { id:'squats', label:'Squats', target:30, unit:'reps', step:5 },
+    { id:'run', label:'Laufen', target:2, unit:'km', step:0.5 },
+  ];
+
+  function todayKey(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function levelFromXP(totalXP){
+    let level = 1, remaining = totalXP;
+    while (remaining >= XP_PER_LEVEL){ remaining -= XP_PER_LEVEL; level++; }
+    return { level, currentXP: remaining, neededXP: XP_PER_LEVEL };
+  }
+
+  function defaultState(){
+    return { currentDay: todayKey(), progress:{}, totalXP:0, streak:0, lastCompletedDate:null };
+  }
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return defaultState();
+      const data = JSON.parse(raw);
+      const key = todayKey();
+      if(data.currentDay !== key){
+        // new day: check streak break
+        if(data.lastCompletedDate){
+          const last = new Date(data.lastCompletedDate);
+          const diff = Math.round((new Date(key) - last) / 86400000);
+          if(diff > 1) data.streak = 0;
+        }
+        data.currentDay = key;
+        data.progress = {};
+      }
+      if(!data.progress) data.progress = {};
+      return data;
+    }catch(e){
+      return defaultState();
+    }
+  }
+
+  function saveState(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch(e){ console.error('Storage error', e); }
+  }
+
+  let state = loadState();
+
+  // ----- DOM refs -----
+  const levelNumEl = document.getElementById('levelNum');
+  const xpLabelEl = document.getElementById('xpLabel');
+  const xpFillEl = document.getElementById('xpFill');
+  const streakNumEl = document.getElementById('streakNum');
+  const streakWordEl = document.getElementById('streakWord');
+  const flameIcon = document.getElementById('flameIcon');
+  const questListEl = document.getElementById('questList');
+  const questsLabelEl = document.getElementById('questsLabel');
+  const completeBannerEl = document.getElementById('completeBanner');
+  const totalXpEl = document.getElementById('totalXp');
+  const resetBtn = document.getElementById('resetBtn');
+  const overlayAllComplete = document.getElementById('overlayAllComplete');
+  const overlayLevelUp = document.getElementById('overlayLevelUp');
+  const newLevelText = document.getElementById('newLevelText');
+
+  function getProgress(id){
+    return state.progress[id] || 0;
+  }
+  function isDone(q){
+    return getProgress(q.id) >= q.target;
+  }
+  function allDone(){
+    return QUESTS.every(isDone);
+  }
+
+  function render(){
+    const { level, currentXP, neededXP } = levelFromXP(state.totalXP);
+    levelNumEl.textContent = level;
+    xpLabelEl.textContent = currentXP + ' / ' + neededXP;
+    xpFillEl.style.width = Math.round((currentXP/neededXP)*100) + '%';
+
+    streakNumEl.textContent = state.streak;
+    streakWordEl.textContent = state.streak === 1 ? 'Tag' : 'Tage';
+    if(state.streak > 0){
+      flameIcon.classList.add('active');
+      flameIcon.querySelector('path').setAttribute('fill', 'var(--orange)');
+    } else {
+      flameIcon.classList.remove('active');
+      flameIcon.querySelector('path').setAttribute('fill', '#3A4566');
+    }
+
+    totalXpEl.textContent = state.totalXP;
+
+    const done = QUESTS.filter(isDone).length;
+    questsLabelEl.textContent = 'ÜBUNGEN — ' + done + '/' + QUESTS.length;
+
+    // render quest items
+    questListEl.innerHTML = '';
+    QUESTS.forEach((q, i) => {
+      const progress = getProgress(q.id);
+      const done = isDone(q);
+      const row = document.createElement('div');
+      row.className = 'quest' + (done ? ' done' : '');
+      row.style.animationDelay = (i * 70) + 'ms';
+
+      const left = document.createElement('div');
+      left.className = 'quest-left';
+
+      const checkbox = document.createElement('div');
+      checkbox.className = 'checkbox';
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+      checkbox.appendChild(dot);
+
+      const name = document.createElement('div');
+      name.className = 'quest-name';
+      name.textContent = q.label;
+
+      left.appendChild(checkbox);
+      left.appendChild(name);
+
+      const counter = document.createElement('div');
+      counter.className = 'counter';
+
+      const minus = document.createElement('button');
+      minus.textContent = '–';
+      minus.setAttribute('aria-label', q.label + ' verringern');
+      minus.addEventListener('click', (e) => { e.stopPropagation(); adjustProgress(q, -q.step); });
+
+      const val = document.createElement('div');
+      val.className = 'val';
+      val.textContent = formatVal(progress, q) + '/' + formatVal(q.target, q);
+
+      const plus = document.createElement('button');
+      plus.textContent = '+';
+      plus.setAttribute('aria-label', q.label + ' erhöhen');
+      plus.addEventListener('click', (e) => { e.stopPropagation(); adjustProgress(q, q.step); });
+
+      counter.appendChild(minus);
+      counter.appendChild(val);
+      counter.appendChild(plus);
+
+      row.appendChild(left);
+      row.appendChild(counter);
+
+      // tap anywhere else on row toggles full-complete / reset
+      row.addEventListener('click', () => {
+        toggleQuestComplete(q);
+      });
+
+      questListEl.appendChild(row);
+    });
+
+    // complete banner
+    if(allDone()){
+      completeBannerEl.innerHTML = '';
+      const banner = document.createElement('div');
+      banner.className = 'complete-banner';
+      banner.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="color:var(--aqua)"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> Quest abgeschlossen — gute Arbeit, Jäger.';
+      completeBannerEl.appendChild(banner);
+    } else {
+      completeBannerEl.innerHTML = '';
+    }
+  }
+
+  function formatVal(v, q){
+    if(q.unit === 'km'){
+      return (Math.round(v*10)/10).toString();
+    }
+    return Math.round(v).toString();
+  }
+
+  function adjustProgress(q, delta){
+    const wasDone = isDone(q);
+    let val = getProgress(q.id) + delta;
+    val = Math.max(0, Math.min(q.target, val));
+    // snap floating point
+    val = Math.round(val * 100) / 100;
+    state.progress[q.id] = val;
+    const nowDone = isDone(q);
+
+    handleCompletionChange(wasDone, nowDone);
+    saveState();
+    render();
+  }
+
+  function toggleQuestComplete(q){
+    const wasDone = isDone(q);
+    const wasAllDone = allDone();
+    if(wasDone){
+      state.progress[q.id] = 0;
+    } else {
+      state.progress[q.id] = q.target;
+    }
+    const nowDone = isDone(q);
+    handleCompletionChange(wasDone, nowDone, wasAllDone);
+    saveState();
+    render();
+  }
+
+  function handleCompletionChange(wasDone, nowDone, wasAllDoneOverride){
+    if(wasDone === nowDone) {
+      // still might affect all-done state if this didn't change individual completion
+      return;
+    }
+    let xpDelta = nowDone ? XP_PER_QUEST : -XP_PER_QUEST;
+
+    const wasAllDone = (typeof wasAllDoneOverride === 'boolean') ? wasAllDoneOverride : (function(){
+      // reconstruct: temporarily can't know previous overall state precisely without override
+      return false;
+    })();
+
+    const nowAllDone = allDone();
+
+    if(nowAllDone && !wasAllDone){
+      xpDelta += XP_BONUS_ALL;
+    } else if(!nowAllDone && wasAllDone){
+      xpDelta -= XP_BONUS_ALL;
+    }
+
+    const prevLevel = levelFromXP(state.totalXP).level;
+    state.totalXP = Math.max(0, state.totalXP + xpDelta);
+    const newLevel = levelFromXP(state.totalXP).level;
+
+    if(nowAllDone && !wasAllDone){
+      const key = todayKey();
+      if(state.lastCompletedDate !== key){
+        let diff = null;
+        if(state.lastCompletedDate){
+          const last = new Date(state.lastCompletedDate);
+          diff = Math.round((new Date(key) - last) / 86400000);
+        }
+        if(diff === 1 || diff === null) state.streak += 1;
+        else if(diff !== 0) state.streak = 1;
+        state.lastCompletedDate = key;
+      }
+      showOverlay(overlayAllComplete);
+    } else if(!nowAllDone && wasAllDone){
+      if(state.lastCompletedDate === todayKey()){
+        state.streak = Math.max(0, state.streak - 1);
+        state.lastCompletedDate = null;
+      }
+    }
+
+    if(newLevel > prevLevel){
+      newLevelText.textContent = '→ LV. ' + newLevel;
+      setTimeout(() => showOverlay(overlayLevelUp), nowAllDone && !wasAllDone ? 600 : 0);
+    }
+  }
+
+  function showOverlay(el){
+    el.style.display = 'flex';
+    el.style.animation = 'none';
+    const inner = el.querySelector('.overlay-inner');
+    inner.style.animation = 'none';
+    requestAnimationFrame(() => {
+      inner.style.animation = '';
+    });
+    clearTimeout(el._hideTimeout);
+    el._hideTimeout = setTimeout(() => { el.style.display = 'none'; }, 2400);
+  }
+
+  resetBtn.addEventListener('click', () => {
+    QUESTS.forEach(q => state.progress[q.id] = 0);
+    saveState();
+    render();
+  });
+
+  // ----- ambient particles -----
+  function spawnMotes(){
+    const container = document.getElementById('motes');
+    const count = window.innerWidth < 480 ? 14 : 22;
+    for(let i=0;i<count;i++){
+      const mote = document.createElement('div');
+      mote.className = 'mote';
+      const size = 2 + Math.random()*3;
+      mote.style.width = size + 'px';
+      mote.style.height = size + 'px';
+      mote.style.left = (Math.random()*100) + 'vw';
+      mote.style.bottom = '-10px';
+      mote.style.setProperty('--drift', (Math.random()*60-30) + 'px');
+      const duration = 14 + Math.random()*18;
+      mote.style.animationDuration = duration + 's';
+      mote.style.animationDelay = (Math.random()*duration) + 's';
+      container.appendChild(mote);
+    }
+  }
+
+  // ----- PWA install hint -----
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if(isStandalone){
+    document.getElementById('installHint').style.display = 'none';
+  }
+
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    // skip motes
+  } else {
+    spawnMotes();
+  }
+
+  render();
+})();
+</script>
+
+</body>
+</html>
